@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Text Effect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="particleCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const particles = [];
+        const numParticles = 1500;
+        let isTextFormed = false;
+        let targetPositions = [];
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.size = 1;
+            }
+
+            draw() {
+                let alpha = 1;
+                if (isTextFormed) {
+                    const target = targetPositions[particles.indexOf(this)];
+                    const dx = target.x - this.x;
+                    const dy = target.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    alpha = Math.max(0.1, 1 - distance / 100);
+                }
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+                ctx.fill();
+            }
+
+            update() {
+                if (isTextFormed) {
+                    const target = targetPositions[particles.indexOf(this)];
+                    const dx = target.x - this.x;
+                    const dy = target.y - this.y;
+                    this.vx += dx * 0.03;
+                    this.vy += dy * 0.03;
+                    this.vx *= 0.9;
+                    this.vy *= 0.9;
+                } else {
+                    this.vx += (Math.random() - 0.5) * 0.1;
+                    this.vy += (Math.random() - 0.5) * 0.1;
+                    this.vx *= 0.99;
+                    this.vy *= 0.99;
+                }
+                this.x += this.vx;
+                this.y += this.vy;
+                this.draw();
+            }
+        }
+
+        function initParticles() {
+            for (let i = 0; i < numParticles; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function drawText() {
+            ctx.font = '70px Arial';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const text = '杨山  哥们好想你';
+            const textMetrics = ctx.measureText(text);
+            const textWidth = textMetrics.width;
+            const textX = canvas.width / 2;
+            const textY = canvas.height / 2;
+            ctx.fillText(text, textX, textY);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            targetPositions = [];
+            for (let y = 0; y < canvas.height; y += 3) {
+                for (let x = 0; x < canvas.width; x += 3) {
+                    const index = (y * canvas.width + x) * 4;
+                    if (imageData.data[index + 3] > 128) {
+                        targetPositions.push({ x, y });
+                    }
+                    if (targetPositions.length >= numParticles) break;
+                }
+                if (targetPositions.length >= numParticles) break;
+            }
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 1;
+            const gridSize = 40;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawBottomRightTextAndHeart() {
+            ctx.font = '20px "Comic Sans MS", cursive, sans-serif';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            const text = '心怀远山时，无游亦裕己';
+            const textX = canvas.width - 20;
+            const textY = canvas.height - 20;
+            ctx.fillText(text, textX, textY);
+
+            // 计算文字的中线位置
+            const textHeight = 20;
+            const textMidY = textY - textHeight / 2;
+
+            // 绘制爱心
+            const heartX = textX + 10;
+            const offset = 5; // 定义上移的偏移量
+            const heartY = textMidY - offset; // 爱心纵坐标再减去偏移量
+            const size = 10;
+            ctx.beginPath();
+            ctx.moveTo(heartX, heartY);
+            ctx.bezierCurveTo(heartX + size / 2, heartY - size, heartX + size, heartY + size / 3, heartX, heartY + size);
+            ctx.bezierCurveTo(heartX - size, heartY + size / 3, heartX - size / 2, heartY - size, heartX, heartY);
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            particles.forEach(particle => particle.update());
+            drawBottomRightTextAndHeart();
+            requestAnimationFrame(animate);
+        }
+
+        function toggleText() {
+            isTextFormed = !isTextFormed;
+            if (isTextFormed) {
+                drawText();
+            }
+        }
+
+        canvas.addEventListener('mousedown', toggleText);
+        canvas.addEventListener('touchstart', toggleText);
+
+        initParticles();
+        animate();
+    </script>
+</body>
+
+</html>
+    
